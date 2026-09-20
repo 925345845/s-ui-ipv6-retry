@@ -1,0 +1,586 @@
+<template>
+  <LogVue v-model="logModal.visible" :control="logModal" :visible="logModal.visible" />
+  <Backup v-model="backupModal.visible" :control="backupModal" :visible="backupModal.visible" />
+  <UsageStats v-model:visible="usageStatsModal.visible" />
+  <v-container class="home-dashboard" :class="{ 'home-dashboard--active': reloadItems.length > 0 }" :loading="loading">
+    <v-responsive :class="reloadItems.length>0 ? 'home-dashboard__content home-dashboard__content--active text-center' : 'home-dashboard__content align-center'" >
+      <v-row class="home-logo-row d-flex align-center justify-center">
+        <v-col cols="auto">
+          <v-img src="@/assets/logo.svg" :width="reloadItems.length>0 ? 100 : 200"></v-img>
+        </v-col>
+      </v-row>
+      <v-row class="home-actions-row">
+        <v-col cols="12">
+          <div class="home-actions">
+            <v-dialog v-model="menu" :close-on-content-click="false" transition="scale-transition" max-width="800">
+              <template v-slot:activator="{ props }">
+                <v-btn v-bind="props" class="home-action-btn" hide-details variant="tonal" elevation="3">
+                  {{ $t('main.tiles') }} <v-icon icon="mdi-star-plus" />
+                </v-btn>
+              </template>
+              <v-card rounded="xl">
+                <v-card-title>
+                  <v-row>
+                    <v-col>
+                      {{ $t('main.tiles') }}
+                    </v-col>
+                    <v-spacer></v-spacer>
+                    <v-col cols="auto"><v-icon icon="mdi-close" @click="menu = false"></v-icon></v-col>
+                  </v-row>
+                </v-card-title>
+                <v-divider></v-divider>
+                <v-row v-for="items in menuItems" density="compact">
+                  <v-col cols="12">
+                    <v-card :subtitle="items.title" variant="flat">
+                      <v-card-text>
+                        <v-row density="compact">
+                          <v-col cols="12" md="6" lg="3" v-for="item in items.value">
+                            <v-switch
+                            density="compact"
+                            v-model="reloadItems"
+                            :value="item.value"
+                            color="primary"
+                            :label="item.title"
+                            hide-details></v-switch>
+                          </v-col>
+                        </v-row>
+                      </v-card-text>
+                    </v-card>
+                  </v-col>
+                </v-row>
+              </v-card>
+            </v-dialog>
+            <v-btn class="home-action-btn" variant="tonal" hide-details elevation="3"
+              @click="backupModal.visible = true">{{ $t('main.backup.title') }}<v-icon icon="mdi-backup-restore" />
+            </v-btn>
+            <v-btn class="home-action-btn" variant="tonal" hide-details elevation="3"
+              @click="logModal.visible = true">{{ $t('basic.log.title') }} <v-icon icon="mdi-list-box-outline" />
+            </v-btn>
+            <v-btn class="home-action-btn" variant="tonal" hide-details elevation="3"
+              @click="usageStatsModal.visible = true">{{ $t('main.stats.title') }} <v-icon icon="mdi-chart-box-outline" />
+            </v-btn>
+          </div>
+        </v-col>
+      </v-row>
+      <v-row class="home-tiles-row">
+        <v-col class="home-tile-col" cols="12" sm="6" md="4" lg="3" v-for="i in reloadItems" :key="i">
+          <v-card
+            :class="['home-tile-card', 'rounded-lg', {
+              'home-tile-card--gauge': i.charAt(0) == 'g',
+              'home-tile-card--chart': i.charAt(0) == 'h',
+              'home-tile-card--info': i.charAt(0) == 'i',
+            }]"
+            variant="outlined"
+            elevation="5">
+            <v-card-title class="home-tile-title">
+              {{ menuItems.flatMap(cat => cat.value).find(m => m.value == i)?.title }}
+              <template v-if="i == 'i-sys'">
+                <v-icon icon="mdi-update" color="primary"
+                  @click="reloadSys()" size="small" v-tooltip:top="$t('actions.update')"
+                  style="margin-inline-start: 10px;">
+                </v-icon>
+              </template>
+              <template v-if="i == 'h-net'">
+                <v-icon icon="mdi-information" color="primary" size="small"
+                  v-tooltip:top="'↓' + 
+                  HumanReadable.sizeFormat(tilesData.net?.recv) + ' - ' + 
+                  HumanReadable.sizeFormat(tilesData.net?.sent) + '↑'"
+                  style="margin-inline-start: 10px;">
+                </v-icon>
+              </template>
+            </v-card-title>
+            <v-card-text class="home-tile-body" align="center" justify="center">
+              <Gauge :tilesData="tilesData" :type="i" v-if="i.charAt(0) == 'g'" />
+              <History :tilesData="tilesData" :type="i" v-if="i.charAt(0) == 'h'" />
+              <template v-if="i == 'i-sys'">
+                <v-row class="home-info-grid">
+                  <v-col cols="3">{{ $t('main.info.host') }}</v-col>
+                  <v-col cols="9" style="text-wrap: nowrap; overflow: hidden">{{ tilesData.sys?.hostName }}</v-col>
+                  <v-col cols="3">{{ $t('main.info.cpu') }}</v-col>
+                  <v-col cols="9">
+                    <v-chip density="compact" variant="flat" :color="hostReqChipColor">
+                      <v-tooltip activator="parent" location="top" style="direction: ltr;">
+                        {{ tilesData.sys?.cpuType }}
+                        <template v-if="tilesData.sys?.requirements">
+                          <br />{{ $t('hostReq.minLabel') }}: {{ tilesData.sys.requirements.min_cpu_cores }} {{ $t('main.info.core') }} / {{ tilesData.sys.requirements.min_mem_gb }} GB
+                          <template v-if="tilesData.sys.requirements.applies">
+                            <br />mode: cluster (agents: {{ tilesData.sys.requirements.agent_count }})
+                          </template>
+                        </template>
+                      </v-tooltip>
+                     {{ tilesData.sys?.cpuCount }} {{ $t('main.info.core') }}
+                     <template v-if="tilesData.sys?.memTotal">
+                       · {{ (tilesData.sys.memTotal / (1024**3)).toFixed(1) }} GB
+                     </template>
+                    </v-chip>
+                  </v-col>
+                  <v-col cols="3">IP</v-col>
+                  <v-col cols="9">
+                    <v-chip density="compact" color="primary" variant="flat" v-if="tilesData.sys?.ipv4?.length>0">
+                      <v-tooltip activator="parent" location="top" style="direction: ltr;">
+                        <span v-html="tilesData.sys?.ipv4?.join('<br />')"></span>
+                      </v-tooltip>
+                      IPv4
+                    </v-chip>
+                    <v-chip density="compact" color="primary" variant="flat" v-if="tilesData.sys?.ipv6?.length>0">
+                      <v-tooltip activator="parent" location="top" style="direction: ltr;">
+                        <span v-html="tilesData.sys?.ipv6?.join('<br />')"></span>
+                      </v-tooltip>
+                      IPv6
+                    </v-chip>
+                  </v-col>
+                  <v-col cols="3">S-UI</v-col>
+                  <v-col cols="9">
+                    <v-chip density="compact" color="blue">
+                      v{{ tilesData.sys?.appVersion }}
+                    </v-chip>
+                  </v-col>
+                  <v-col cols="3">{{ $t('main.info.uptime') }}</v-col>
+                  <v-col cols="9" v-tooltip:top="$t('main.info.startupTime')
+                    + ': ' + new Date((tilesData.sys?.bootTime || 0) * 1000).toLocaleString(locale)">
+                    {{ HumanReadable.formatSecond((Date.now()/1000) - tilesData.sys?.bootTime) }}
+                  </v-col>
+                </v-row>
+              </template>
+              <template v-if="i == 'i-sbd'">
+                <v-row class="home-info-grid">
+                  <v-col cols="4">{{ $t('main.info.running') }}</v-col>
+                  <v-col cols="8">
+                    <v-chip density="compact" color="success" variant="flat" v-if="tilesData.sbd?.running">{{ $t('main.info.runningYes') }}</v-chip>
+                    <v-chip density="compact" color="error" variant="flat" v-else>{{ $t('main.info.runningNo') }}</v-chip>
+                    <v-chip density="compact" color="transparent" v-if="tilesData.sbd?.running && !loading" style="cursor: pointer;" @click="restartSingbox()">
+                      <v-tooltip activator="parent" location="top">
+                        {{ $t('actions.restartSb') }}
+                      </v-tooltip>
+                      <v-icon icon="mdi-restart" color="warning" />
+                    </v-chip>
+                  </v-col>
+                  <v-col cols="4">{{ $t('main.info.memory') }}</v-col>
+                  <v-col cols="8">
+                    <v-chip density="compact" color="primary" variant="flat" v-if="tilesData.sbd?.stats?.Alloc">
+                      {{ HumanReadable.sizeFormat(tilesData.sbd?.stats?.Alloc) }}
+                    </v-chip> 
+                  </v-col>
+                  <v-col cols="4">{{ $t('main.info.threads') }}</v-col>
+                  <v-col cols="8">
+                    <v-chip density="compact" color="primary" variant="flat" v-if="tilesData.sbd?.stats?.NumGoroutine">
+                      {{ tilesData.sbd?.stats?.NumGoroutine }}
+                    </v-chip>
+                  </v-col>
+                  <v-col cols="4">{{ $t('main.info.uptime') }}</v-col>
+                  <v-col cols="8">{{ HumanReadable.formatSecond(tilesData.sbd?.stats?.Uptime) }}</v-col>
+                  <v-col cols="4">{{ $t('online') }}</v-col>
+                  <v-col cols="8">
+                    <template v-if="tilesData.sbd?.running">
+                      <v-chip density="compact" color="primary" variant="flat" v-if="Data().onlines?.user">
+                        <v-tooltip activator="parent" location="top" overflow="auto">
+                          <span v-text="$t('pages.clients')" style="font-weight: bold;"></span><br/>
+                          <span v-for="user in Data().onlines?.user">{{ user }}<br /></span>
+                        </v-tooltip>
+                        {{ Data().onlines?.user?.length }}
+                      </v-chip>
+                      <v-chip density="compact" color="success" variant="flat" v-if="Data().onlines?.inbound">
+                        <v-tooltip activator="parent" location="top" :text="$t('pages.inbounds')">
+                          <span v-text="$t('pages.inbounds')" style="font-weight: bold;"></span><br/>
+                          <span v-for="i in Data().onlines?.inbound">{{ i }}<br /></span>
+                        </v-tooltip>
+                        {{ Data().onlines?.inbound?.length }}
+                      </v-chip>
+                      <v-chip density="compact" color="info" variant="flat" v-if="Data().onlines?.outbound">
+                        <v-tooltip activator="parent" location="top" :text="$t('pages.outbounds')">
+                          <span v-text="$t('pages.outbounds')" style="font-weight: bold;"></span><br/>
+                          <span v-for="o in Data().onlines?.outbound">{{ o }}<br /></span>
+                        </v-tooltip>
+                        {{ Data().onlines?.outbound?.length }}
+                      </v-chip>
+                    </template>
+                  </v-col>
+                </v-row>
+              </template>
+              <template v-if="i == 'i-xry'">
+                <v-row class="home-info-grid">
+                  <v-col cols="4">{{ $t('main.info.running') }}</v-col>
+                  <v-col cols="8">
+                    <v-chip density="compact" color="success" variant="flat" v-if="tilesData.xry?.running">{{ $t('main.info.runningYes') }}</v-chip>
+                    <v-chip density="compact" color="warning" variant="flat" v-else-if="tilesData.xry?.has_inbounds === false">未配置</v-chip>
+                    <v-chip density="compact" color="error" variant="flat" v-else>{{ $t('main.info.runningNo') }}</v-chip>
+                    <v-chip density="compact" color="transparent" v-if="tilesData.xry?.has_inbounds === false" style="cursor: pointer;" @click="goXrayInbound()">
+                      <v-tooltip activator="parent" location="top">
+                        添加 Xray 入站
+                      </v-tooltip>
+                      <v-icon icon="mdi-plus-circle" color="primary" />
+                    </v-chip>
+                    <v-chip density="compact" color="transparent" v-else-if="!loading" style="cursor: pointer;" @click="restartXray()">
+                      <v-tooltip activator="parent" location="top">
+                        {{ $t('actions.restartXray') }}
+                      </v-tooltip>
+                      <v-icon icon="mdi-restart" color="warning" />
+                    </v-chip>
+                  </v-col>
+                  <v-col cols="4">{{ $t('main.info.uptime') }}</v-col>
+                  <v-col cols="8">{{ HumanReadable.formatSecond(tilesData.xry?.stats?.Uptime) }}</v-col>
+                  <v-col cols="4">Bin</v-col>
+                  <v-col cols="8">
+                    <v-chip density="compact" color="primary" variant="flat" v-if="tilesData.xry?.path">
+                      <v-tooltip activator="parent" location="top" style="direction: ltr;">
+                        {{ tilesData.xry?.path }}
+                      </v-tooltip>
+                      {{ shortPath(tilesData.xry?.path) }}
+                    </v-chip>
+                  </v-col>
+                  <v-col cols="4">Config</v-col>
+                  <v-col cols="8">
+                    <v-chip density="compact" color="primary" variant="flat" v-if="tilesData.xry?.config_path">
+                      <v-tooltip activator="parent" location="top" style="direction: ltr;">
+                        {{ tilesData.xry?.config_path }}
+                      </v-tooltip>
+                      {{ shortPath(tilesData.xry?.config_path) }}
+                    </v-chip>
+                  </v-col>
+                  <v-col cols="4" v-if="tilesData.xry?.last_error">Error</v-col>
+                  <v-col cols="8" v-if="tilesData.xry?.last_error">
+                    <v-chip density="compact" color="error" variant="flat">
+                      <v-tooltip activator="parent" location="top" style="direction: ltr;">
+                        {{ tilesData.xry?.last_error }}
+                      </v-tooltip>
+                      {{ shortText(tilesData.xry?.last_error) }}
+                    </v-chip>
+                  </v-col>
+                </v-row>
+              </template>
+            </v-card-text>
+          </v-card>
+        </v-col>
+      </v-row>
+    </v-responsive>
+  </v-container>
+</template>
+
+<script lang="ts" setup>
+import HttpUtils from '@/plugins/httputil'
+import { HumanReadable } from '@/plugins/utils'
+import Data from '@/store/modules/data'
+import Gauge from '@/components/tiles/Gauge.vue'
+import History from '@/components/tiles/History.vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { i18n, locale } from '@/locales'
+import LogVue from '@/layouts/modals/Logs.vue'
+import Backup from '@/layouts/modals/Backup.vue'
+import UsageStats from '@/layouts/modals/UsageStats.vue'
+import router from '@/router'
+
+const isOpenWrtLite = import.meta.env.VITE_OPENWRT_LITE === 'true'
+const loading = ref(false)
+const menu = ref(false)
+const infoItems = [
+  { title: i18n.global.t('main.info.sys'), value: "i-sys" },
+  { title: i18n.global.t('main.info.sbd'), value: "i-sbd" },
+  { title: i18n.global.t('main.info.xry'), value: "i-xry" },
+].filter(item => !isOpenWrtLite || item.value !== "i-xry")
+const menuItems = [
+  { title: i18n.global.t('main.gauges'), value: [
+    { title: i18n.global.t('main.gauge.cpu'), value: "g-cpu" },
+    { title: i18n.global.t('main.gauge.mem'), value: "g-mem" },
+    { title: i18n.global.t('main.gauge.dsk'), value: "g-dsk" },
+    { title: i18n.global.t('main.gauge.swp'), value: "g-swp" },
+    ]
+  },
+  { title: i18n.global.t('main.charts'), value: [
+    { title: i18n.global.t('main.chart.cpu'), value: "h-cpu" },
+    { title: i18n.global.t('main.chart.mem'), value: "h-mem" },
+    { title: i18n.global.t('main.chart.net'), value: "h-net" },
+    { title: i18n.global.t('main.chart.pnet'), value: "hp-net" },
+    { title: i18n.global.t('main.chart.dio'), value: "h-dio" },
+    ]
+  },
+  { title: i18n.global.t('main.infos'), value: infoItems },
+]
+
+const tilesData = ref(<any>{})
+
+const reloadItems = computed({
+  get() {
+    return isOpenWrtLite ? Data().reloadItems.filter(item => item !== "i-xry") : Data().reloadItems
+  },
+  set(v:string[]) {
+    if (isOpenWrtLite) v = v.filter(item => item !== "i-xry")
+    if (Data().reloadItems.length == 0 && v.length>0) startTimer()
+    if (Data().reloadItems.length > 0 && v.length == 0) stopTimer()
+    Data().reloadItems = v
+    v.length>0 ? localStorage.setItem("reloadItems",v.join(',')) : localStorage.removeItem("reloadItems")
+  }
+})
+
+const reloadData = async () => {
+  if (statusLoadPending) return
+  let request = [...new Set(reloadItems.value.map(r => r.split('-')[1]))]
+  if (tilesData.value?.sys?.appVersion) request = request.filter(r => r != 'sys')
+  if (request.length === 0) return
+  statusLoadPending = true
+  try {
+    const data = await HttpUtils.get('api/status',{ r: request.join(',')})
+    if (data.success) {
+      tilesData.value = { ...tilesData.value, ...data.obj }
+    }
+  } finally {
+    statusLoadPending = false
+  }
+}
+
+const reloadSys = async () => {
+  const data = await HttpUtils.get('api/status',{ r: 'sys'})
+  if (data.success) {
+    tilesData.value.sys = data.obj.sys
+  }
+}
+
+let intervalId: ReturnType<typeof setInterval> | null = null
+let statusLoadPending = false
+
+const startTimer = () => {
+  if (intervalId) return
+  intervalId = setInterval(() => {
+    if (!document.hidden) void reloadData()
+  }, 5000)
+}
+
+const stopTimer = () => {
+  if (intervalId) {
+    clearInterval(intervalId)
+    intervalId = null
+  }
+}
+
+const handleVisibilityChange = () => {
+  if (!document.hidden && intervalId) void reloadData()
+}
+
+onMounted(async () => {
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  loading.value = true
+  if (isOpenWrtLite && Data().reloadItems.includes("i-xry")) {
+    reloadItems.value = Data().reloadItems
+  }
+  if (Data().reloadItems.length != 0) {
+    await reloadData()
+    startTimer()
+  }
+  loading.value = false
+})
+
+onBeforeUnmount(() => {
+  stopTimer()
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+})
+
+const logModal = ref({ visible: false })
+
+const backupModal = ref({ visible: false })
+
+const usageStatsModal = ref({ visible: false })
+
+const restartSingbox = async () => {
+  loading.value = true
+  await HttpUtils.post('api/restartSb',{})
+  loading.value = false
+}
+
+const restartXray = async () => {
+  if (tilesData.value.xry?.has_inbounds === false) {
+    await goXrayInbound()
+    return
+  }
+  loading.value = true
+  await HttpUtils.post('api/restartXray',{})
+  await reloadData()
+  loading.value = false
+}
+
+const goXrayInbound = async () => {
+  await router.push('/inbounds')
+}
+
+const shortPath = (path?: string) => path ? path.split(/[\\/]/).pop() || path : '-'
+const shortText = (text?: string) => {
+  if (!text) return '-'
+  return text.length > 28 ? text.substring(0, 28) + '...' : text
+}
+
+// CPU/mem chip: red only when this panel is cluster control plane and under 2c/2G.
+const hostReqChipColor = computed(() => {
+  const req = tilesData.value?.sys?.requirements ?? Data().hostRequirements
+  if (!req) return 'primary'
+  if (req.applies === true && req.ok === false) return 'error'
+  if (req.meets_cluster_rec === false) return 'warning'
+  return 'success'
+})
+</script>
+
+<style scoped>
+.home-dashboard {
+  min-height: calc(100vh - 112px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px clamp(12px, 2vw, 28px) 34px;
+}
+
+.home-dashboard--active {
+  align-items: flex-start;
+  min-height: auto;
+  padding-top: 16px;
+}
+
+.home-dashboard__content {
+  width: min(100%, 760px);
+  margin-inline: auto;
+}
+
+.home-dashboard__content--active {
+  width: min(100%, 1320px);
+}
+
+.home-dashboard :deep(.v-row) {
+  margin-inline: 0;
+}
+
+.home-dashboard :deep(.v-col) {
+  padding-inline: 6px;
+}
+
+.home-actions-row {
+  margin-top: 10px;
+}
+
+.home-actions {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.home-action-btn {
+  min-width: 128px;
+  border-radius: 8px !important;
+  justify-content: center;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  margin: 0 !important;
+  text-transform: none;
+}
+
+.home-tiles-row {
+  align-items: stretch;
+  justify-content: center;
+  margin-top: 14px;
+  row-gap: 14px;
+}
+
+.home-tile-col {
+  display: flex;
+}
+
+.home-tile-card {
+  width: 100%;
+  min-height: 166px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.home-tile-card--chart {
+  min-height: 190px;
+}
+
+.home-tile-card--info {
+  min-height: 202px;
+}
+
+.home-tile-title {
+  min-height: 36px;
+  padding: 12px 16px 2px !important;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: start;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-tile-body {
+  flex: 1;
+  min-height: 0;
+  padding: 4px 16px 14px !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.home-tile-card--chart .home-tile-body {
+  padding-top: 0 !important;
+}
+
+.home-info-grid {
+  width: 100%;
+  align-items: center;
+  row-gap: 2px;
+  text-align: start;
+}
+
+.home-info-grid :deep(.v-col) {
+  min-width: 0;
+  padding: 3px 4px !important;
+}
+
+.home-info-grid :deep(.v-col:nth-child(odd)) {
+  color: rgba(var(--v-theme-on-surface), 0.72);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.home-info-grid :deep(.v-col:nth-child(even)) {
+  overflow: hidden;
+  text-align: end;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-info-grid :deep(.v-chip) {
+  max-width: 100%;
+}
+
+.home-info-grid :deep(.v-chip__content) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 600px) {
+  .home-dashboard {
+    min-height: calc(100vh - 96px);
+    padding-inline: 12px;
+  }
+
+  .home-actions {
+    gap: 8px;
+  }
+
+  .home-action-btn {
+    flex: 1 1 calc(50% - 8px);
+    min-width: 0;
+    max-width: 164px;
+  }
+
+  .home-tile-card,
+  .home-tile-card--chart,
+  .home-tile-card--info {
+    min-height: 168px;
+  }
+}
+</style>

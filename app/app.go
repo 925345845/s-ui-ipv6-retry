@@ -1,0 +1,151 @@
+package app
+
+import (
+	"log"
+
+	"github.com/Hhz0823/1s-ui/config"
+	"github.com/Hhz0823/1s-ui/core"
+	"github.com/Hhz0823/1s-ui/cronjob"
+	"github.com/Hhz0823/1s-ui/database"
+	"github.com/Hhz0823/1s-ui/logger"
+	"github.com/Hhz0823/1s-ui/service"
+	"github.com/Hhz0823/1s-ui/sub"
+	"github.com/Hhz0823/1s-ui/web"
+
+	"github.com/op/go-logging"
+)
+
+type APP struct {
+	service.SettingService
+	configService *service.ConfigService
+	webServer     *web.Server
+	subServer     *sub.Server
+	cronJob       *cronjob.CronJob
+	logger        *logging.Logger
+	core          *core.Core
+}
+
+func NewApp() *APP {
+	return &APP{}
+}
+
+func (a *APP) Init() error {
+	log.Printf("%v %v", config.GetName(), config.GetVersion())
+
+	a.initLog()
+
+	err := database.InitDB(config.GetDBPath())
+	if err != nil {
+		return err
+	}
+
+	// Init Setting
+	a.SettingService.GetAllSetting()
+
+	a.core = core.NewCore()
+
+	a.cronJob = cronjob.NewCronJob()
+	a.webServer = web.NewServer()
+	a.subServer = sub.NewServer()
+
+	a.configService = service.NewConfigService(a.core)
+
+	return nil
+}
+
+func (a *APP) Start() error {
+	loc, err := a.SettingService.GetTimeLocation()
+	if err != nil {
+		return err
+	}
+
+	trafficAge, err := a.SettingService.GetTrafficAge()
+	if err != nil {
+		return err
+	}
+
+	statsBucketSeconds, err := a.SettingService.GetStatsBucketSeconds()
+	if err != nil {
+		return err
+	}
+
+	globalReset, err := a.SettingService.GetGlobalReset()
+	if err != nil {
+		return err
+	}
+
+	err = a.cronJob.Start(loc, trafficAge, statsBucketSeconds, globalReset)
+	if err != nil {
+		return err
+	}
+
+	err = a.webServer.Start()
+	if err != nil {
+		return err
+	}
+
+	err = a.subServer.Start()
+	if err != nil {
+		return err
+	}
+
+	if err := a.configService.RestoreRelayIPv6(); err != nil {
+		logger.Warning("restore relay IPv6 addresses failed: ", err)
+	}
+
+	// Low-memory / safe install path: keep panel UI up without loading cores.
+	// IPv6 restoration above is independent of the proxy cores and must still
+	// run, otherwise a normal VPS reboot would leave persisted relay addresses
+	// missing until the periodic repair job executes.
+	if config.IsSkipCore() {
+		logger.Warning("SUI_SKIP_CORE is enabled: sing-box/Xray will not auto-start. Start cores from the panel when ready.")
+		return nil
+	}
+
+	err = a.configService.StartCore()
+	if err != nil {
+		logger.Error(err)
+	}
+
+	return nil
+}
+
+func (a *APP) Stop() {
+	a.cronJob.Stop()
+	err := a.subServer.Stop()
+	if err != nil {
+		logger.Warning("stop Sub Server err:", err)
+	}
+	err = a.webServer.Stop()
+	if err != nil {
+		logger.Warning("stop Web Server err:", err)
+	}
+	err = a.configService.StopCore()
+	if err != nil {
+		logger.Warning("stop Core err:", err)
+	}
+}
+
+func (a *APP) initLog() {
+	switch config.GetLogLevel() {
+	case config.Debug:
+		logger.InitLogger(logging.DEBUG)
+	case config.Info:
+		logger.InitLogger(logging.INFO)
+	case config.Warn:
+		logger.InitLogger(logging.WARNING)
+	case config.Error:
+		logger.InitLogger(logging.ERROR)
+	default:
+		log.Fatal("unknown log level:", config.GetLogLevel())
+	}
+}
+
+func (a *APP) RestartApp() {
+	a.Stop()
+	a.Start()
+}
+
+func (a *APP) GetCore() *core.Core {
+	return a.core
+}
