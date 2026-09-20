@@ -53,7 +53,7 @@ jobs:
             -ldflags "-w -s -checklinkname=0 -linkmode external -extldflags -static -X github.com/Hhz0823/1s-ui/config.version=${RELEASE_TAG#v}" \
             -o s-ui/sui main.go
           CGO_ENABLED=0 go build -trimpath -ldflags '-w -s' -o s-ui/sui-agent ./cmd/sui-agent
-          cp s-ui.sh s-ui.service s-ui-agent.service install-agent.sh s-ui/
+          cp retry-manage.sh s-ui-ipv6-retry.service s-ui-ipv6-retry-agent.service install-agent.sh s-ui/
           chmod 755 s-ui/sui s-ui/sui-agent s-ui/*.sh
           tar -czf s-ui-linux-${{ matrix.arch }}.tar.gz s-ui
       - uses: actions/upload-artifact@v4

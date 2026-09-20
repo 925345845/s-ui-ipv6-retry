@@ -20,10 +20,10 @@ import (
 )
 
 const (
-	defaultLocalAgentBinary   = "/usr/local/s-ui/sui-agent"
-	defaultLocalAgentEnvFile  = "/etc/default/1s-ui-agent"
-	defaultLocalControlSocket = "/run/s-ui/control.sock"
-	localAgentServiceName     = "s-ui-agent.service"
+	defaultLocalAgentBinary   = "/usr/local/s-ui-ipv6-retry/sui-agent"
+	defaultLocalAgentEnvFile  = "/etc/default/s-ui-ipv6-retry-agent"
+	defaultLocalControlSocket = "/run/s-ui-ipv6-retry/control.sock"
+	localAgentServiceName     = "s-ui-ipv6-retry-agent.service"
 )
 
 type LocalAgentConnection struct {

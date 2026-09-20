@@ -1,4 +1,4 @@
-Independent repository: https://github.com/925345845/s-ui-ipv6-retry
+Independent runtime: s-ui-ipv6-retry
+Version: 1.1.0
 Base: 925345845/s-ui@5a66a5e8ef767ca4f051fca14aacc1935829843b
-Version: 1.0.0
-License: GPL-3.0, see LICENSE
+License: GPL-3.0

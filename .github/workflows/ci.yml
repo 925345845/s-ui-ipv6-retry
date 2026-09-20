@@ -28,8 +28,18 @@ jobs:
       - name: Test IPv6 allocation and relay configuration
         run: |
           go test -race ./internal/relayipv6 -count=1
-          CGO_ENABLED=1 go test ./service -run Relay -count=1
+          CGO_ENABLED=1 go test ./service ./config -run 'Relay|Independent' -count=1
       - name: Validate installers
         run: |
           for file in install.sh s-ui.sh install-agent.sh paired-release/install-s-ui-paired-online.sh paired-release/install-s-ui-paired.sh; do bash -n "$file"; done
-          bash scripts/test-install-safety.sh
+          sudo bash scripts/test-independent-install.sh
+      - name: Verify IPv4 input in real Chromium
+        working-directory: frontend
+        run: |
+          npx playwright install --with-deps chromium
+          npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pairing-browser-screenshots
+          path: frontend/test-results/

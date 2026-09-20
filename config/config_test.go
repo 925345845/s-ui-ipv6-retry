@@ -6,6 +6,14 @@ import (
 	"testing"
 )
 
+func TestIndependentDatabaseName(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("SUI_DB_FOLDER", dir)
+	if GetName() != "s-ui-ipv6-retry" || filepath.Base(GetDBPath()) != "s-ui-ipv6-retry.db" {
+		t.Fatal("independent instance must use its own database name")
+	}
+}
+
 func TestIsXrayDisabledFromEnvironment(t *testing.T) {
 	t.Setenv("SUI_DB_FOLDER", t.TempDir())
 	t.Setenv("SUI_DISABLE_XRAY", "yes")

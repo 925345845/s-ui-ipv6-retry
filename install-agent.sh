@@ -128,11 +128,11 @@ url="https://github.com/${repo}/releases/download/${version}/s-ui-linux-${arch}.
 
 echo "Downloading 1S-UI Agent ${version} for ${arch}..."
 curl --fail --location --retry 3 --output "$archive" "$url"
-tar -xzf "$archive" -C "$tmp_dir" s-ui/sui-agent s-ui/s-ui-agent.service
+tar -xzf "$archive" -C "$tmp_dir" s-ui/sui-agent s-ui/s-ui-ipv6-retry-agent.service
 
-install -d -m 0755 /usr/local/s-ui /etc/default /etc/systemd/system
-install -m 0755 "$tmp_dir/s-ui/sui-agent" /usr/local/s-ui/sui-agent
-install -m 0644 "$tmp_dir/s-ui/s-ui-agent.service" /etc/systemd/system/s-ui-agent.service
+install -d -m 0755 /usr/local/s-ui-ipv6-retry /etc/default /etc/systemd/system
+install -m 0755 "$tmp_dir/s-ui/sui-agent" /usr/local/s-ui-ipv6-retry/sui-agent
+install -m 0644 "$tmp_dir/s-ui/s-ui-ipv6-retry-agent.service" /etc/systemd/system/s-ui-ipv6-retry-agent.service
 resolve_connection
 umask 077
 {
@@ -140,16 +140,16 @@ umask 077
     printf 'SUI_AGENT_TOKEN=%s\n' "$token"
     printf 'SUI_AGENT_INTERVAL=15s\n'
     printf 'SUI_AGENT_INSECURE=%s\n' "$insecure"
-    printf 'SUI_AGENT_LOCAL_SOCKET=/run/s-ui/control.sock\n'
-} > /etc/default/1s-ui-agent
+    printf 'SUI_AGENT_LOCAL_SOCKET=/run/s-ui-ipv6-retry/control.sock\n'
+} > /etc/default/s-ui-ipv6-retry-agent
 
 echo "Validating the panel connection..."
 agent_check=(
-    /usr/local/s-ui/sui-agent
+    /usr/local/s-ui-ipv6-retry/sui-agent
     --panel "$panel_url"
     --token "$token"
     --interval 15s
-    --local-socket /run/s-ui/control.sock
+    --local-socket /run/s-ui-ipv6-retry/control.sock
     --once
 )
 if [[ "$insecure" == "true" ]]; then
@@ -157,6 +157,6 @@ if [[ "$insecure" == "true" ]]; then
 fi
 "${agent_check[@]}"
 systemctl daemon-reload
-systemctl enable --now s-ui-agent
-systemctl is-active --quiet s-ui-agent
+systemctl enable --now s-ui-ipv6-retry-agent
+systemctl is-active --quiet s-ui-ipv6-retry-agent
 echo "1S-UI Agent is connected and running."

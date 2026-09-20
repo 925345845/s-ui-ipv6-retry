@@ -81,7 +81,7 @@
     quickAddCount: "创建节点数量",
     quickAddCountHint: "一次创建 1-100 条节点，标签和端口会自动保持唯一。",
     selectProtocol: "选择协议",
-    home: "主页",
+    home: "配对工作台",
     inbounds: "入站管理",
     outbounds: "出站管理",
     services: "服务管理",

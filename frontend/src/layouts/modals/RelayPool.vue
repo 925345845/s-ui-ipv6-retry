@@ -193,9 +193,11 @@
               <v-col cols="12">
                 <v-textarea v-model="form.ipv6_text" :label="$t('relay.ipv6List')" :hint="$t('relay.pairedIPv6Hint')" persistent-hint rows="3" dir="ltr" hide-details="auto" />
               </v-col>
-              <v-col cols="12" class="relay-upstream-editor-col">
-                <v-textarea v-model="form.upstream_text" class="relay-upstream-field" :label="$t('relay.upstreamList')" :hint="$t('relay.pairedUpstreamHint')" persistent-hint rows="9" dir="ltr" hide-details="auto" />
-              </v-col>
+              <div class="pairing-ipv4-required">
+                <label for="paired-ipv4-list">IPv4 上游列表（必填）</label>
+                <textarea id="paired-ipv4-list" v-model="form.upstream_text" rows="8" dir="ltr" spellcheck="false" placeholder="203.0.113.10:1080:username:password" />
+                <p>{{ $t('relay.pairedUpstreamHint') }}</p>
+              </div>
               <v-col cols="12">
                 <v-switch v-model="form.add_system_addresses" color="primary" :label="$t('relay.addSystemAddresses')" hide-details />
               </v-col>
@@ -240,9 +242,11 @@
               <v-col cols="12">
                 <v-textarea v-model="form.ipv6_text" :label="$t('relay.ipv6List')" :hint="$t('relay.pairedIPv6Hint')" persistent-hint rows="3" dir="ltr" hide-details="auto" />
               </v-col>
-              <v-col cols="12" class="relay-upstream-editor-col">
-                <v-textarea v-model="form.upstream_text" class="relay-upstream-field" :label="$t('relay.upstreamList')" :hint="$t('relay.pairedUpstreamHint')" persistent-hint rows="9" dir="ltr" hide-details="auto" />
-              </v-col>
+              <div class="pairing-ipv4-required">
+                <label for="dualstack-ipv4-list">IPv4 上游列表（必填）</label>
+                <textarea id="dualstack-ipv4-list" v-model="form.upstream_text" rows="8" dir="ltr" spellcheck="false" placeholder="203.0.113.10:1080:username:password" />
+                <p>{{ $t('relay.pairedUpstreamHint') }}</p>
+              </div>
               <v-col cols="12">
                 <v-switch v-model="form.add_system_addresses" color="primary" :label="$t('relay.addSystemAddresses')" hide-details />
               </v-col>
@@ -367,7 +371,7 @@ const emit = defineEmits<{
   (event: 'close'): void
   (event: 'changed'): void
 }>()
-const tab = ref('ipv6')
+const tab = ref('paired')
 const advancedPanel = ref<string>()
 const loading = ref(false)
 const refreshing = ref(false)
@@ -384,7 +388,7 @@ const poolPageSize = 8
 const exportPreviewLimit = 8
 const isRemote = computed(() => Number.isInteger(props.agentId) && Number(props.agentId) > 0)
 const form = reactive({
-  name: '', public_host: window.location.hostname, port_start: 30000, count: 10,
+  name: '', public_host: window.location.hostname, port_start: 40000, count: 10,
   username_prefix: 'relay', password_length: 12, interface: '', base_ipv6: '', prefix: 64,
   ipv6_text: '', upstream_text: '', add_system_addresses: true, protocol: 'socks',
   transport: 'http', tls_id: 0, domain_strategy: 'ipv6_only', shadowsocks_method: '2022-blake3-aes-256-gcm', apple_id_ipv4_only: true,
@@ -685,6 +689,11 @@ watch(() => props.connectionHost, (host) => {
 </script>
 
 <style scoped>
+.pairing-ipv4-required { display: block; width: 100%; padding: 12px; }
+.pairing-ipv4-required label { display: block; font-weight: 600; margin-bottom: 8px; }
+.pairing-ipv4-required textarea { display: block; width: 100%; min-height: 190px; padding: 12px; border: 1px solid currentColor; border-radius: 8px; color: inherit; background: rgb(var(--v-theme-surface)); font-family: monospace; resize: vertical; }
+.pairing-ipv4-required p { font-size: 12px; margin-top: 8px; opacity: .7; }
+
 .relay-dialog { max-height: calc(100vh - 20px); display: flex; flex-direction: column; overflow: hidden !important; background: rgba(var(--v-theme-surface), 0.985) !important; }
 .relay-dialog > :deep(.v-card-title), .relay-dialog > :deep(.v-card-actions) { position: relative; z-index: 2; background: rgba(var(--v-theme-surface), 0.99) !important; }
 .relay-dialog-body { min-height: 0; background: rgba(var(--v-theme-surface), 0.34); overflow-y: auto !important; }

@@ -92,7 +92,7 @@ func GetDBFolderPath() string {
 			if runtime.GOOS == "windows" {
 				return "C:\\Program Files\\s-ui\\db"
 			}
-			return "/usr/local/s-ui/db"
+			return "/usr/local/s-ui-ipv6-retry/db"
 		}
 		dbFolderPath = filepath.Join(dir, "db")
 	}
@@ -111,7 +111,7 @@ func GetBinFolderPath() string {
 			if runtime.GOOS == "windows" {
 				return "C:\\Program Files\\s-ui\\bin"
 			}
-			return "/usr/local/s-ui/bin"
+			return "/usr/local/s-ui-ipv6-retry/bin"
 		}
 		binFolderPath = filepath.Join(dir, "bin")
 	}

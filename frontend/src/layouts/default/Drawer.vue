@@ -13,7 +13,7 @@
     <div class="drawer-header">
       <div class="drawer-logo">
         <v-img src="@/assets/logo.svg" :width="36" :height="36" />
-        <span class="drawer-brand">1S-UI</span>
+        <span class="drawer-brand">IPv6 Retry</span>
       </div>
       <v-btn
         v-if="!isMobile"

@@ -69,7 +69,7 @@
     quickAddCount: "建立節點數量",
     quickAddCountHint: "一次建立 1-100 條節點，標籤和連接埠會自動保持唯一。",
     selectProtocol: "選擇協議",
-    home: "主頁",
+    home: "配对工作台",
     inbounds: "入站管理",
     outbounds: "出站管理",
     services: "服務管理",

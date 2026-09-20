@@ -5,7 +5,7 @@
       <v-card class="login-card" elevation="0">
         <div class="login-header">
           <v-img src="@/assets/logo.svg" :width="64" :height="64" class="login-logo" />
-          <h1 class="login-brand">1S-UI</h1>
+          <h1 class="login-brand">IPv6 Retry</h1>
           <p class="login-subtitle">{{ $t('login.title') }}</p>
         </div>
 

@@ -24,9 +24,9 @@ func controlSocketPath() string {
 		return value
 	}
 	if runtime.GOOS == "linux" {
-		return "/run/s-ui/control.sock"
+		return "/run/s-ui-ipv6-retry/control.sock"
 	}
-	return filepath.Join(os.TempDir(), "1s-ui-control.sock")
+	return filepath.Join(os.TempDir(), "s-ui-ipv6-retry-control.sock")
 }
 
 func (s *Server) startControlSocket() error {

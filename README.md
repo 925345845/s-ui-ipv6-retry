@@ -1,66 +1,62 @@
-# S-UI IPv6 Retry
+# IPv6 Retry — 独立 IPv4 / IPv6 配对工具
 
-独立维护的 IPv4/IPv6 配对补齐版代理面板，基于 1S-UI。**按输入的 IPv4 上游列表固定节点数量和顺序，IPv6 不通时自动更换并重试，直到全部配齐或达到本次任务时限。**
+**v1.1.0 起独立运行，不再覆盖原来的 s-ui。** 首页直接提供 IPv4 上游列表输入、IPv6 设置、批量创建、连接导出和独立刷新链接。
 
-- 独立仓库：[925345845/s-ui-ipv6-retry](https://github.com/925345845/s-ui-ipv6-retry)
-- 正式版本：[v1.0.0](https://github.com/925345845/s-ui-ipv6-retry/releases/tag/v1.0.0)
-- Linux：amd64/x86_64、arm64/aarch64；Debian/Ubuntu，systemd。
+## 一键安装
 
-## 一键安装 / 覆盖升级
-
-使用 root 执行：
+Debian/Ubuntu、systemd，支持 amd64 和 arm64。以 root 执行：
 
 ```bash
-curl -4 -fsSL https://raw.githubusercontent.com/925345845/s-ui-ipv6-retry/main/paired-release/install-s-ui-paired-online.sh | S_UI_PAIRED_VERSION=v1.0.0 bash
+curl -4 -fsSL https://raw.githubusercontent.com/925345845/s-ui-ipv6-retry/main/paired-release/install-s-ui-paired-online.sh | S_UI_PAIRED_VERSION=v1.1.0 bash
 ```
 
-脚本只从本仓库 Release 下载对应架构的安装包，安装前校验 SHA-256。原数据库保留，原面板二进制会先备份；启动失败时恢复原二进制。
+访问：`http://服务器IP:2195/app/`。首次账号密码：`admin` / `admin`，登录后请修改密码。
 
-本项目沿用 `/usr/local/s-ui`、`s-ui` 服务及已有数据库，方便直接升级已有面板；独立指仓库、版本和发布渠道独立，不是同一台服务器上的第二套并行面板。默认访问 `http://服务器IP:2095/app/`；已有安装保留原配置。
+| 项目 | 本独立工具 |
+| --- | --- |
+| 安装目录 | `/usr/local/s-ui-ipv6-retry` |
+| 数据库 | `/usr/local/s-ui-ipv6-retry/db/s-ui-ipv6-retry.db` |
+| 服务 | `s-ui-ipv6-retry.service` |
+| 管理命令 | `s-ui-ipv6-retry status` / `log` / `restart` / `update` |
+| 网页 / 订阅端口 | `2195` / `2196` |
+| 控制套接字 | `/run/s-ui-ipv6-retry/control.sock` |
+| 登录 Cookie | `s-ui-ipv6-retry` |
+| 配对入口默认起始端口 | `40000` |
 
-本仓库的管理脚本更新、Agent 安装及面板生成的受管客户端安装命令均指向本仓库。
+**独立安装从空数据库开始，不复制原 s-ui 的节点或设置。** 原 `/usr/local/s-ui`、`/usr/bin/s-ui`、`s-ui.service` 均不改动、不停止。两套实例可同时运行，代理入口端口仍应选择互不冲突的范围。
+
+如果装过 v1.0.0：那一版只是仓库独立，实际仍覆盖原面板。v1.1.0 会另外安装独立实例，不自动恢复或删除原面板。旧版安装包已停用，请勿继续使用 v1.0.x。
 
 ## 使用
 
-1. 打开“入站管理 → 一键中转 → IPv4/IPv6 配对”或“双栈出口”。
-2. 选择有已路由公网 IPv6 前缀的网卡，并勾选“系统地址创建”。
-3. 粘贴 IPv4 SOCKS5 上游列表，支持 `IP:端口:账号:密码` 等原有格式。
-4. 点击创建，等待整批补齐；成功后导出节点。
+1. 登录后首页即为“IPv4 / IPv6 配对工作台”。
+2. 在顶部 **IPv4 上游列表（必填）** 粘贴代理，每行一个，支持 `IP:端口:账号:密码`、`socks5://` 和供应商 JSON。
+3. 选择网卡和已路由公网 IPv6 前缀。保持“自动添加到系统网卡”开启。
+4. 创建配对。输入 N 条上游，就按原順序配齐 N 条入口，最多 500 条。
+5. 从下方已创建批次复制连接、导出比特浏览器导入表，或查看每条 IPv4 / IPv6 对应关系和刷新链接。
 
-输入 N 条上游，就生成 N 条入口（最多 500 条）。每轮并发检测 8 条，检测成功的行保留，仅为失败行生成新的 IPv6。IPv4 账号、端口和行顺序保持对应，访问网站时的分流策略不变。
+IPv6 不通时只替换失败行，成功的配对保留。每轮最多 8 个并发检测，整个补齐阶段最多 8 分钟；地址空间耗尽、网卡操作失败或前缀整体不通时明确报错，不保存未完成的新批次。只清理本次添加的地址。
 
-- 手动填写的 IPv6 如果检测不通，也会自动替换。
-- 只删除本次添加的失败 IPv6，不删除服务器原有地址。
-- 整个补齐阶段最多等待 **8 分钟**，每行没有固定重试次数上限。
-- 若整个前缀不通、地址耗尽或系统操作失败，则明确报错，清理本次新地址并取消本次新批次；已有批次不受影响。
-- 检测是 IPv6 对公网 TCP 连通性检查，不验证供应商 IPv4 SOCKS5 账号有效性，也不保证所有网站可访问。
+网站访问分流保持原逻辑。IPv6 通网检测不验证供应商 IPv4 SOCKS5 账号，也不保证任意网站均可访问。
 
-安装包包含常用 sing-box 功能和 Agent，未编入 Naive 出站扩展。Windows、OpenWrt 和 Docker 不属于当前发布范围。
+## 构建和验证
 
-## 验证与构建
-
-分配逻辑覆盖 500 条配对、部分地址连续失败后补齐、原有地址保护、超时取消、地址耗尽和清理错误。GitHub Actions 执行 Linux 回归测试、分配器竞态检查、前端构建和安装脚本检查。
+要求 Go 1.26.5、Node.js 25、npm、C 编译器。发布包包含 sing-box 和 Agent，未编入 Naive 出站扩展。
 
 ```bash
-cd frontend
-npm ci
-npm run build
-cd ..
+npm ci --prefix frontend
+npm run build --prefix frontend
 mkdir -p web/html
 cp -a frontend/dist/. web/html/
-CGO_ENABLED=1 go test ./service ./internal/relayipv6 -run 'Relay|Fill' -count=1
+CGO_ENABLED=1 go test ./service ./config -run 'Relay|Independent' -count=1
 go test -race ./internal/relayipv6 -count=1
-CGO_ENABLED=1 go build -trimpath \
-  -tags 'with_quic,with_grpc,with_utls,with_acme,with_gvisor,badlinkname,tfogo_checklinkname0,with_tailscale' \
-  -ldflags '-w -s -checklinkname=0' -o sui main.go
+CGO_ENABLED=1 go build -trimpath -tags 'with_quic,with_grpc,with_utls,with_acme,with_gvisor,badlinkname,tfogo_checklinkname0,with_tailscale' -ldflags '-w -s -checklinkname=0' -o sui main.go
 ```
 
-要求 Go 1.26.5、Node.js 25、npm 和 C 编译器。Actions 的“Build independent Linux release”可按已有新标签构建两种架构并生成待发布草稿。
+CI 还运行独立安装器隔离/回滚测试和 Chromium 界面测试。界面测试使用模拟 API 验证表单显示与提交；真实 IPv6 网络仍需要在自己的 VPS 上验证。
 
 ## 来源与许可
 
-- 直接基础：[925345845/s-ui](https://github.com/925345845/s-ui)，提交 `5a66a5e8ef767ca4f051fca14aacc1935829843b`。
-- 上游项目：[Hhz0823/1s-ui](https://github.com/Hhz0823/1s-ui)、[alireza0/s-ui](https://github.com/alireza0/s-ui)。
-- 许可：[GNU GPL v3](LICENSE)。保留上游版权及许可，修改后的完整源码在本仓库公开。
-- Go 模块路径保留上游路径以保持内部导入兼容，不影响独立 GitHub 发布。
-- [上游原始说明](docs/UPSTREAM-README.md)作为来源记录保留，其旧安装链接不适用于本项目。
+基于 [925345845/s-ui](https://github.com/925345845/s-ui) 的 `5a66a5e8ef767ca4f051fca14aacc1935829843b`，上游为 [Hhz0823/1s-ui](https://github.com/Hhz0823/1s-ui) 和 [alireza0/s-ui](https://github.com/alireza0/s-ui)。保留 [GPL-3.0](LICENSE) 许可及上游版权，完整修改源码公开。
+
+内部 Go 模块路径保留上游名字，与安装目录和运行隔离无关。[上游原始文档](docs/UPSTREAM-README.md)仅用于来源记录，其中旧安装命令不适用于本项目。

@@ -97,7 +97,7 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 	assetsBasePath := base_url + "assets/"
 
 	store := cookie.NewStore(secret)
-	engine.Use(sessions.Sessions("s-ui", store))
+	engine.Use(sessions.Sessions("s-ui-ipv6-retry", store))
 
 	engine.Use(func(c *gin.Context) {
 		uri := c.Request.RequestURI

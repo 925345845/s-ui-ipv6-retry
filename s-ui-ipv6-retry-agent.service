@@ -1,13 +1,14 @@
 [Unit]
-Description=1S-UI Server Agent
+Description=IPv6 Retry independent agent
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
 User=root
-EnvironmentFile=/etc/default/1s-ui-agent
-ExecStart=/usr/local/s-ui/sui-agent
+EnvironmentFile=/etc/default/s-ui-ipv6-retry-agent
+Environment=SUI_AGENT_LOCAL_SOCKET=/run/s-ui-ipv6-retry/control.sock
+ExecStart=/usr/local/s-ui-ipv6-retry/sui-agent
 Restart=on-failure
 RestartSec=5s
 UMask=0077

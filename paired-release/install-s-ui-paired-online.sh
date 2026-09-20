@@ -12,8 +12,9 @@ case "$(uname -m)" in
 esac
 [[ "$(uname -s)" == Linux ]] || { echo "此安装器仅支持 Linux。" >&2; exit 1; }
 
-release_version="${S_UI_PAIRED_VERSION:-v1.0.0}"
+release_version="${S_UI_PAIRED_VERSION:-v1.1.0}"
 [[ "$release_version" =~ ^v[0-9][A-Za-z0-9._-]*$ ]] || { echo "无效版本号。" >&2; exit 1; }
+[[ "$release_version" != v1.0.* ]] || { echo "v1.0.x 会覆盖原面板，已停止提供安装，请使用 v1.1.0 或更新版本。" >&2; exit 1; }
 base_url="https://github.com/925345845/s-ui-ipv6-retry/releases/download/${release_version}"
 tmp_dir="$(mktemp -d /tmp/s-ui-ipv6-retry.XXXXXX)"
 trap 'rm -rf -- "$tmp_dir"' EXIT

@@ -17,7 +17,7 @@ const routes = [
       {
         path: '/',
         name: 'pages.home',
-        component: () => import('@/views/Home.vue'),
+        component: () => import('@/views/Pairing.vue'),
       },
       {
         path: '/inbounds',
