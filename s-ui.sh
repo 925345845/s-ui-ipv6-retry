@@ -297,7 +297,7 @@ show_log() {
 }
 
 update_shell() {
-    wget -O /usr/bin/s-ui -N --no-check-certificate https://github.com/925345845/s-ui-ipv6-retry/raw/master/s-ui.sh
+    wget -O /usr/bin/s-ui -N https://raw.githubusercontent.com/925345845/s-ui-ipv6-retry/main/s-ui.sh
     if [[ $? != 0 ]]; then
         echo ""
         LOGE "下载脚本失败，请检查当前机器是否可以连接 Github"
